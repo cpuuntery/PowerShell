@@ -1,0 +1,57 @@
+run a program pased on a path
+
+& "the path"   (the path must be inside"")
+
+execute powershell command without showing the console. any long command that uses pipes is a no go
+
+PowerShell.exe -WindowStyle hidden { powershell command }
+
+
+kill process based on the name
+
+Get-Process | Where-Object {$_.Path -like "*something*"} | Stop-Process
+
+OR
+
+Get-Process | Where-Object {$_.Path -like "*something*"} | Stop-Process -Force -processname {$_.ProcessName}
+
+
+
+Execute powershell script. outside the powershell console
+
+powershell.exe -ExecutionPolicy Bypass -File script.ps1
+
+
+Pause script execution for a specific amount of time
+
+Start-Sleep -s time in seconds
+
+
+
+you use [Where-Object] when you want to filter objects from all the available objects
+
+you use [Select-Object] when you want to get a certain property or properties from all the available objects
+
+you use [ForEach-Object] when you want to do something to every single object for example add or subtract from each object. Or getting the value from every object
+
+
+powershell regex
+
+.\adb.exe shell am broadcast -a clipper.get | foreach {[regex]::match($_,'(?<=data=").*(?="$)').value}     (Any line that does not match the regex will exist as an empty line in the output)
+
+
+$String = .\adb.exe shell am broadcast -a clipper.get
+[regex]::matches($String, '(?<=data=").*(?="$)').Value         (The slightly longer version does not have the issue of the shorter version)
+
+
+merge html files
+
+fast
+$newfile=""; for($i=1; $i -le 70; $i++) {$newfile += GC "$i.html"} $newfile | out-file "target.html"
+
+slow
+for($i=1; $i -le 70; $i++){Get-Content "$i.html" >> joinedFile.html}
+
+
+Copy file to every folder and subfolder
+Get-ChildItem C:\DestinationFolder\ -Directory -Recurse | Copy-Item "C:\Filetocopy\123.csv" -Destination {$_.fullname}
