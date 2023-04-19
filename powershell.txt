@@ -44,6 +44,23 @@ $String = .\adb.exe shell am broadcast -a clipper.get
 [regex]::matches($String, '(?<=data=").*(?="$)').Value         (The slightly longer version does not have the issue of the shorter version)
 
 
+
+in powershell match returns an array of matched results 
+foreach is needed to iterate over the array
+
+foreach {[regex]::match($_,'(?<=FullName=).*?(?=})').value}
+
+replace only returns the the replaced string. note that regex is supported
+
+
+cat file.txt | % {$_ -replace "find", "replace"}
+
+you can pipe the replace method into another replace method just like you can pipe sed into another sed
+
+| % {$_ -replace "C:\\", "file:///C:/"} | % {$_ -replace "\\", "/"}
+
+
+
 merge html files
 
 fast
