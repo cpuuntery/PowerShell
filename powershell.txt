@@ -76,3 +76,11 @@ Get-ChildItem C:\DestinationFolder\ -Directory -Recurse | Copy-Item "C:\Filetoco
 hash files recursively
 
 Get-ChildItem -Recurse -File | Get-FileHash -Algorithm SHA1 | Select Hash,Path | % {$_ -replace "(\w.*? )(.+)(\\)(.*)", "`$1`$4"} | % {$_ -replace "@.*?=", ""} | % {$_ -replace "}", ""} | % {$_ -replace ";", ""}
+
+
+rename both files and directories recursively
+
+Get-ChildItem -Recurse | Where-Object {$_.Name -match "find"} | Rename-Item -NewName {$_.Name –replace "find","replace"}
+
+The following command even if it returns errors, both folder and files will be renamed
+Get-ChildItem -Recurse | Rename-Item -NewName {$_.Name –replace "find","replace"}
