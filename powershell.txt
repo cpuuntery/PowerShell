@@ -43,7 +43,7 @@ powershell regex
 $String = .\adb.exe shell am broadcast -a clipper.get
 [regex]::matches($String, '(?<=data=").*(?="$)').Value         (The slightly longer version does not have the issue of the shorter version)
 
-
+When using Back Referencing with powershell regex you need to escape the dollar sign ($) by adding backtick(`) before it 
 
 in powershell match returns an array of matched results 
 foreach is needed to iterate over the array
@@ -72,3 +72,7 @@ for($i=1; $i -le 70; $i++){Get-Content "$i.html" >> joinedFile.html}
 
 Copy file to every folder and subfolder
 Get-ChildItem C:\DestinationFolder\ -Directory -Recurse | Copy-Item "C:\Filetocopy\123.csv" -Destination {$_.fullname}
+
+hash files recursively
+
+Get-ChildItem -Recurse -File | Get-FileHash -Algorithm SHA1 | Select Hash,Path | % {$_ -replace "(\w.*? )(.+)(\\)(.*)", "`$1`$4"} | % {$_ -replace "@.*?=", ""} | % {$_ -replace "}", ""} | % {$_ -replace ";", ""}
