@@ -1,0 +1,18 @@
+The Powershell equivalent of linux piping. Is this.
+| % {$_}
+But sometimes a method take no argument like this
+| % {$_.ToUpper()}
+you only need to add a space in the case if you are using regex replace operator
+| % {$_ -replace "find", "replace"} 
+to select specific column for Powershell output you need to pip the output to [Select] you can either specify the columns you want separated by comma
+| Select Hash,Path
+or you specify the column that you don't want in the output
+| Select-Object * -ExcludeProperty Algorithm
+
+Some examples
+hash files in the current directory
+
+Get-ChildItem -Recurse -File | Get-FileHash -Algorithm SHA1 | Select Hash,Path | % {$_ -replace "(\w.*? )(.+)(\\)(.*)", "`$1`$4"} | % {$_ -replace "@.*?=", ""} | % {$_ -replace "}", ""} | % {$_ -replace ";", ""}
+
+webtoon
+Get-ChildItem -Recurse -File -Filter your_thron.html | Select Fullname | % {$_ -replace "C:\\", "file:///C:/"} | % {$_ -replace "\\", "/"} | foreach {[regex]::match($_,'(?<=FullName=).*?(?=})').value} | Set-Clipboard
