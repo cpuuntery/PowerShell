@@ -1,0 +1,41 @@
+#Get a list of files and directories
+Get-ChildItem -Recurse | Select Name
+find -exec ls -A1 {} \+
+find -print0 | sort -z | xargs -0 ls -A1
+
+#Get a list of files only
+Get-ChildItem -Recurse -File | Select Name
+find -type f -exec ls -A1 {} \+
+find -type f -print0 | sort -z | xargs -0 ls -A1
+
+#Get a list of Directories only
+Get-ChildItem -Recurse -Directory | Select Name
+find -type d -exec ls -A1 {} \+
+find -type d -print0 | sort -z | xargs -0 ls -A1
+
+#Get a list of a specific filename
+Get-ChildItem -Recurse -File -Filter your_thron.html | Select Name
+find -type f -iname  "your_thron.html" -exec ls -A1 {} \+
+find -type f -iname  "your_thron.html" -print0 | sort -z | xargs -0 ls -A1
+
+#Copy files to subdirectory of a directory
+Get-ChildItem -Recurse "the path" -Directory -Depth 1 | Copy-Item "C:\Filetocopy\123.csv" -Destination {$_.fullname}
+find /home/yousif/Desktop/Webtoon-Downloader-master/src/If_AI_Ruled_the_World -mindepth 1 -type d -exec cp /home/yousif/Videos/your_thron.html {} \;
+Get-ChildItem C:\DestinationFolder\ -Directory -Recurse | Copy-Item "C:\Filetocopy\123.csv" -Destination {$_.fullname}
+
+#Rename both files and directories recursively
+Get-ChildItem -Recurse | Rename-Item -NewName {$_.Name –replace "find","replace"}
+Get-ChildItem -Recurse | Where-Object {$_.Name -match "find"} | Rename-Item -NewName {$_.Name –replace "find","replace"}
+find -execdir rename 's/find/replace/g' {} +
+
+#Rename only files recursively
+Get-ChildItem -Recurse -File | Rename-Item -NewName {$_.Name –replace "find","replace"}
+find -type f -execdir rename 's/find/replace/g' {} +
+
+#Rename only directories recursively
+Get-ChildItem -Recurse -Directory | Rename-Item -NewName {$_.Name –replace "find","replace"}
+find -type d -execdir rename 's/find/replace/g' {} +
+
+#These two are very similar when it comes to parameters that they take
+Get-ChildItem -Recurse | Where-Object {$_.Name -match "find"} | Rename-Item -NewName {$_.Name –replace "find","replace"}
+find  -iname "find" -execdir rename 's/find/replace/g' {} +

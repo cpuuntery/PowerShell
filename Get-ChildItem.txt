@@ -1,0 +1,58 @@
+most and 100% of the time that you will use Get-ChildItem
+you will use -Recurse with it
+
+-File will return only files
+-Directory will return only directories
+-Filter you can specify a filename or use the only supported * and ? wildcards. By the way, this parameter is case-insensitive
+
+if you just want to list files without doing anything to files, you need to use Select to specify the column that you want to be in the output
+
+
+Get-ChildItem -Recurse | Select Name
+
+Get-ChildItem -Recurse -File | Select Name
+
+Get-ChildItem -Recurse -Directory | Select Name
+
+Get-ChildItem -Recurse -File -Filter | Select Name
+
+
+And most surprising of all, [ls] is an alias to Get-ChildItem. But there are two other aliases [dir] and [gci]
+
+
+Rename files recursively
+
+Get-ChildItem -Recurse -File | Rename-Item -NewName {$_.Name –replace "find","replace"}
+
+hash files recursively
+
+Get-ChildItem -Recurse -File | Get-FileHash -Algorithm SHA1 | Select Hash,Path | % {$_ -replace "(\w.*? )(.+)(\\)(.*)", "`$1`$4"} | % {$_ -replace "@.*?=", ""} | % {$_ -replace "}", ""} | % {$_ -replace ";", ""}
+
+
+Return a list of files that match "your_thron.html"
+Get-ChildItem -Recurse -File -Filter your_thron.html | Select Name
+
+
+the good old touhou days
+Where-Object was needed because Get-ChildItem returns directories and files and not just files, but if you use the -File parameter there will be no need to use Where-Object any more
+Get-ChildItem -Recurse | Where-Object {$_.Name -match "虾米音乐 - "} | Rename-Item -NewName { $_.name –replace "虾米音乐 - ","" }
+But by the same logic you can rename both files and directories recursively
+
+
+copy files to subdirectory of a directory (not tested)
+Get-ChildItem -Recurse "the path" -Directory -Depth 1 | Copy-Item "C:\Filetocopy\123.csv" -Destination {$_.fullname}
+
+rename both files and directories recursively
+
+Get-ChildItem -Recurse | Where-Object {$_.Name -match "find"} | Rename-Item -NewName {$_.Name –replace "find","replace"}
+
+The following command even if it returns errors, both folder and files will be renamed
+Get-ChildItem -Recurse | Rename-Item -NewName {$_.Name –replace "find","replace"}
+
+If you want to use regular expressions, you can combine Get-ChildItem with the Select-String or Where-Object
+Get-ChildItem -Path C:\ -Recurse | Select-String -pattern "Regex"
+Get-ChildItem -Path C:\ -Recurse | Where-Object -FilterScript {$_.name -match "regex"}
+
+
+some example online will use the -Path parameter, some will tell you to use (.) for the current directory. But both are not needed because -Recurse can take path without any other parameters. And the (.) is not needed because -Recurse take the path that is it invoked from as the working directory 
+
