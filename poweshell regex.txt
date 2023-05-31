@@ -1,0 +1,15 @@
+in powershell match returns an array of matched results 
+foreach is needed to iterate over the array
+
+foreach {[regex]::match($_,'(?<=FullName=).*?(?=})').value}
+
+replace only returns the the replaced string. note that regex is supported
+
+
+cat file.txt | % {$_ -replace "find", "replace"}
+
+When using Back Referencing with powershell regex you need to escape the dollar sign ($) by adding backtick(`) before it 
+
+you can pipe the replace method into another replace method just like you can pipe sed into another sed
+
+| % {$_ -replace "C:\\", "file:///C:/"} | % {$_ -replace "\\", "/"}
