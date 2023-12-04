@@ -5,13 +5,23 @@ find -print0 | sort -z | xargs -0 ls -A1
 
 #Get a list of files only
 Get-ChildItem -Recurse -File | Select Name
+find -type f | sed 's/.*\///g'
+find -type f -exec ls -A1 {} \+ | sed 's/\.\//\n/g' | sed 's/.*\///g'
+
 find -type f -exec ls -A1 {} \+
 find -type f -print0 | sort -z | xargs -0 ls -A1
 
 #Get a list of Directories only
 Get-ChildItem -Recurse -Directory | Select Name
+find -type d | sed 's/.*\///g'
+
 find -type d -exec ls -A1 {} \+
-find -type d -print0 | sort -z | xargs -0 ls -A1
+
+find -type d -print0 | sort -z | xargs -0 ls -A1 | sed 's/\.\//\n/g' | sed 's/.*\///g'
+
+find -type d -print0 | sort -z | xargs -0 ls -A1 
+
+
 
 #Get a list of a specific filename
 Get-ChildItem -Recurse -File -Filter your_thron.html | Select Name
