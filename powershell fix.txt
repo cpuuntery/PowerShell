@@ -1,0 +1,10 @@
+1- Open up your favorite assembly editor (I used dnSpy)
+
+2- Open the DLL containing the message, which is probably in your GAC; mine was C:\WINDOWS\Microsoft.Net\assembly\GAC_MSIL\Microsoft.PowerShell.ConsoleHost\v4.0_3.0.0.0__31bf3856ad364e35
+
+2.5- Maybe it is better to copy the file than edit it, after that copy it to where which originate
+
+3- Navigate to Microsoft.PowerShell.ConsoleHost.dll -> Resources -> ManagedEntranceStrings.resources -> ShellBanner
+
+4- Right click ShellBanner in the sidebar -> Edit Resource, remove the last two lines (the newline and the pscore6 message) then go File -> Save Module 
+Hack the permissions on the DLL file in the GAC as required (I always just use TakeOwnership.reg), backup the original file and Copy the edited file
