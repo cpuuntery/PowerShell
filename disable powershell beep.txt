@@ -1,0 +1,4 @@
+run these commands as administrator
+
+cd $PSHOME
+echo "Set-PSReadlineOption -BellStyle None" >> Microsoft.Powershell_profile.ps1
