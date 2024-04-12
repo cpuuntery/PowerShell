@@ -1,3 +1,8 @@
+From my testing, you only need to modify "Microsoft.PowerShell.ConsoleHost.ni.dll" to apply the fix
+if that does not work, then modify 
+"Microsoft.PowerShell.ConsoleHost.dll"
+
+
 1- Open up your favorite assembly editor (I used dnSpy)
 
 2- Open the DLL containing the message, which is probably in your GAC; mine was C:\WINDOWS\Microsoft.Net\assembly\GAC_MSIL\Microsoft.PowerShell.ConsoleHost\v4.0_3.0.0.0__31bf3856ad364e35
@@ -7,4 +12,7 @@
 3- Navigate to Microsoft.PowerShell.ConsoleHost.dll -> Resources -> ManagedEntranceStrings.resources -> ShellBanner
 
 4- Right click ShellBanner in the sidebar -> Edit Resource, remove the last two lines (the newline and the pscore6 message) then go File -> Save Module 
+delete delete the original ||Microsoft.PowerShell.ConsoleHost.dll|| and copy the 
 Hack the permissions on the DLL file in the GAC as required (I always just use TakeOwnership.reg), backup the original file and Copy the edited file
+
+5- search for Microsoft.PowerShell.ConsoleHost.ni.dll in C:\Windows\assembly and also modify it
