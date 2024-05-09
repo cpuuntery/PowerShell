@@ -1,0 +1,51 @@
+$unescapedpath = "D:\filling the gaps in touhou\HARI\2022.10.09 [HARI-019A] プリズムリバー三姉妹のソロ! [東方紅楼夢18]"
+
+function Escaped-Path {
+    $escapedpath = $unescapedpath -replace '([\[\]"$(){};|<>@,])', '`$1'
+    return $escapedpath = "'" + $escapedpath + "'"
+}
+
+$escapedpath = Escaped-Path
+Invoke-Expression "cd $escapedpath"
+
+
+
+
+
+$unescapedpath = "D:\filling the gaps in touhou\HARI\2022.10.09 [HARI-019A] プリズムリバー三姉妹のソロ! [東方紅楼夢18]"
+function Escaped-Path {
+    $escapedpath = $unescapedpath -replace '([\[\]\"`$(){};|<>@,=+])', '`$1'
+    return $escapedpath = "'" + $escapedpath + "'"
+}
+
+$escapedpath = Escaped-Path
+Invoke-Expression "cd $escapedpath"
+
+
+
+
+
+$unescapedpath = "D:\filling the gaps in touhou\HARI\2022.10.09 [HARI-019A] プリズムリバー三姉妹のソロ! [東方紅楼夢18]"
+function Escaped-Path {
+    $escapedpath = $unescapedpath -replace '([\[\]\"`$(){};|<?#&>@,=+])', '`$1'
+    return $escapedpath = "'" + $escapedpath + "'"
+}
+
+$escapedpath = Escaped-Path
+Invoke-Expression "cd $escapedpath"
+
+
+
+
+$unescapedpath = "D:\filling the gaps in touhou\HARI\2022.10.09 [HARI-019A] プリズムリバー三姉妹のソロ! [東方紅楼夢18]"
+function Escaped-Path {
+    $escapedpath = $unescapedpath -replace '([`"{}()\[\]$&|;\'',<>?#@=+])', '`$1'
+    return $escapedpath = "'" + $escapedpath + "'"
+}
+
+$escapedpath = Escaped-Path
+Invoke-Expression "cd $escapedpath"
+
+
+
+
