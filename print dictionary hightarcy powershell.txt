@@ -1,0 +1,89 @@
+Directory Hierarchy
+
+function Print-FolderHierarchy {
+    param (
+        [string]$Path,
+        [string]$Indent = ""
+    )
+
+    # Get the list of subdirectories for the current path
+    $subDirs = Get-ChildItem -Path $Path -Directory
+
+    foreach ($dir in $subDirs) {
+        # Print the current directory with the appropriate indentation
+        Write-Output "${Indent}├── $dir"
+
+        # Recursively call the function for each subdirectory
+        Print-FolderHierarchy -Path "$Path\$dir" -Indent "$Indent    "
+    }
+}
+
+# Call the function with the path of the parent folder
+Print-FolderHierarchy -Path "C:\Users\test\Music" > out.txt
+
+
+
+
+
+
+
+Directory Hierarchy with Files
+
+
+function Print-FolderHierarchyWithFiles {
+    param (
+        [string]$Path,
+        [string]$Indent = ""
+    )
+
+    # Get the list of subdirectories and files for the current path
+    $items = Get-ChildItem -Path $Path
+
+    foreach ($item in $items) {
+        if ($item.PSIsContainer) {
+            # Print the current directory with the appropriate indentation
+            Write-Output "${Indent}├── $item"
+
+            # Recursively call the function for each subdirectory
+            Print-FolderHierarchyWithFiles -Path "$Path\$item" -Indent "$Indent    "
+        } else {
+            # Print the current file with the appropriate indentation
+            Write-Output "${Indent}└── $item"
+        }
+    }
+}
+
+# Call the function with the path of the parent folder
+Print-FolderHierarchyWithFiles -Path "C:\Users\test\Music" > out.txt
+
+
+
+Directory Hierarchy with Files   (more clear)
+
+
+
+function Print-FolderHierarchyWithFiles {
+    param (
+        [string]$Path,
+        [string]$Indent = ""
+    )
+
+    # Get the list of subdirectories and files for the current path
+    $items = Get-ChildItem -Path $Path
+
+    foreach ($item in $items) {
+        if ($item.PSIsContainer) {
+            # Print the current directory with the appropriate indentation
+            Write-Output "${Indent}├── $item     [is a Directory]"
+
+            # Recursively call the function for each subdirectory
+            Print-FolderHierarchyWithFiles -Path "$Path\$item" -Indent "$Indent    "
+        } else {
+            # Print the current file with the appropriate indentation
+            Write-Output "${Indent}└── $item     [is a File]"
+        }
+    }
+}
+
+# Call the function with the path of the parent folder
+Print-FolderHierarchyWithFiles -Path "C:\Users\test\Music" > out.txt
