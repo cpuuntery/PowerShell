@@ -1,0 +1,42 @@
+$exe_path = "C:\Program Files\Virtual Controller\VirtualController.exe"
+
+# Start the VirtualController.exe process
+$process = Start-Process -FilePath $exe_path -PassThru
+
+# Wait for the process to start and become responsive
+$process.WaitForInputIdle()
+
+# Load the necessary assembly for sending keys and Minimize the VirtualController.exe window
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public class Keyboard {
+[DllImport("user32.dll")]
+public static extern bool PostMessage(IntPtr hWnd, UInt32 Msg, int wParam, int lParam);
+}
+
+public class KeyboardInput {
+[DllImport("user32.dll")]
+public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+public const byte VK_F5 = 0x74;
+public const uint KEYEVENTF_KEYDOWN = 0x0;
+public const uint KEYEVENTF_KEYUP = 0x2;
+
+public static void SendKeyPress(byte keyCode) {
+keybd_event(keyCode, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+keybd_event(keyCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+}
+}
+"@
+
+# Send the F5 key press to the VirtualController.exe process
+[KeyboardInput]::SendKeyPress(0x74) # F5 key press
+
+# Minimize the VirtualController.exe window
+Start-Sleep -Seconds 0.1
+$WM_SYSCOMMAND = 0x0112
+$SC_MINIMIZE = 0xF020
+[Keyboard]::PostMessage($process.MainWindowHandle, $WM_SYSCOMMAND, $SC_MINIMIZE, 0)
