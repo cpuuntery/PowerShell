@@ -1,0 +1,38 @@
+Get-ChildItem -Recurse -File | Get-FileHash -Algorithm SHA1 | ForEach-Object { "$($_.Path -replace '.*\\', ''): $($_.Hash)" }
+
+
+# Get the clipboard content as a list of file paths
+$clipboardContent = Get-Clipboard -Format FileDropList
+
+# Check if the clipboard contains files
+if ($clipboardContent -and $clipboardContent.Count -gt 0) {
+    # Hash each file in the clipboard
+    $clipboardContent | ForEach-Object {
+        $filePath = Resolve-Path $_
+        $hashResult = Get-FileHash -Path $filePath -Algorithm SHA1
+        # Output the file name and hash
+        "$($hashResult.Path -replace '.*\\', ''): $($hashResult.Hash)"
+    }
+} else {
+    Write-Output "No file in the clipboard."
+}
+
+
+
+
+
+# Get the clipboard content as a list of file paths
+$clipboardContent = Get-Clipboard -Format FileDropList
+
+# Check if the clipboard contains files
+if ($clipboardContent -and $clipboardContent.Count -gt 0) {
+    # Get hash for each file in clipboard
+    $clipboardContent | ForEach-Object {
+        $filePath = Resolve-Path $_
+        Get-FileHash -Path $filePath -Algorithm SHA1 | ForEach-Object {
+            "$($_.Path -replace '.*\\', ''): $($_.Hash)"
+        }
+    }
+} else {
+    Write-Output "No file in the clipboard."
+}

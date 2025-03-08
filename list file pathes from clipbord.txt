@@ -1,0 +1,14 @@
+# Get the clipboard content
+$clipboardContent = Get-Clipboard -Format FileDropList -ErrorAction SilentlyContinue
+
+# Check if the clipboard contains file paths
+if ($clipboardContent) {
+    # List the full paths of the files
+    foreach ($filePath in $clipboardContent) {
+        if (Test-Path $filePath) {
+            Write-Output $filePath
+        }
+    }
+} else {
+    Write-Output "No file paths found in the clipboard."
+}

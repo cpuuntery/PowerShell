@@ -1,0 +1,30 @@
+Get-Content "hashlist.txt" | ForEach-Object { $split = $_ -split ':\s+'; $file = $split[0].Trim(); $expectedHash = $split[1].Trim().ToUpper(); Write-Host "`nChecking: $file"; if (Test-Path $file) { $actualHash = (Get-FileHash $file -Algorithm SHA1).Hash; if ($actualHash -eq $expectedHash) { Write-Host "Hash Match!" -ForegroundColor Green } else { Write-Host "Hash Mismatch! `nExpected: $expectedHash`nActual:   $actualHash" -ForegroundColor Red } } else { Write-Host "File not found!" -ForegroundColor Yellow } }
+
+
+
+
+
+Get-Content -Path "hashlist.txt" | ForEach-Object { $name, $expectedHash = $_ -split ': '; $filePath = (Join-Path (Get-Location) $name); if (Test-Path $filePath) { $actualHash = (Get-FileHash -Path $filePath -Algorithm SHA1).Hash; if ($actualHash -eq $expectedHash) { Write-Host "Match: $name" -ForegroundColor Green } else { Write-Host "Mismatch: $name" -ForegroundColor Red } } else { Write-Host "File not found: $name" -ForegroundColor Yellow } }
+
+
+
+
+Get-Content -Path "hashlist.txt" | ForEach-Object {
+    $name, $expectedHash = $_ -split ': '
+    $filePath = Join-Path (Get-Location) $name
+    if (Test-Path $filePath) {
+        $actualHash = (Get-FileHash -Path $filePath -Algorithm SHA1).Hash
+        if ($actualHash -eq $expectedHash) {
+            Write-Host "Match: $name" -ForegroundColor Green
+        } else {
+            Write-Host "Mismatch: $name" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "File not found: $name" -ForegroundColor Yellow
+    }
+}
+
+
+Get-Content -Path "hashlist.txt" | ForEach-Object { $name, $expectedHash = $_ -split ': '; $filePath = (Join-Path (Get-Location) $name); if (Test-Path $filePath) { $actualHash = (Get-FileHash -Path $filePath -Algorithm SHA1).Hash; if ($actualHash -eq $expectedHash) { Write-Host "Match: $name" -ForegroundColor Green } else { Write-Host "`nHash Mismatch!`nExpected: $expectedHash`nActual:   $actualHash`n" -ForegroundColor Red } } else { Write-Host "File not found: $name" -ForegroundColor Yellow } }
+
+
