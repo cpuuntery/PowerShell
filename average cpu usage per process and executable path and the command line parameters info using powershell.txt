@@ -1,0 +1,90 @@
+# ----------------------------------------
+# CPU + Path + CommandLine Reporter
+# (PowerShell 5.1 compatible, aligned table)
+# ----------------------------------------
+
+# 0) PARAMETERS
+$SampleInterval = 1
+$MaxSamples     = 10
+$CounterPath    = '\Process(*)\% Processor Time'
+$IgnoreNames    = '_Total','Idle'
+
+# 1) COLLECT RAW COUNTER DATA
+Write-Host "Collecting $MaxSamples samples at $SampleInterval-second intervals..."
+$samples = Get-Counter `
+  -Counter        $CounterPath `
+  -SampleInterval $SampleInterval `
+  -MaxSamples     $MaxSamples `
+  -ErrorAction    SilentlyContinue
+
+# 2) FLATTEN INTO PSCUSTOMOBJECTS
+$rawData = foreach ($cs in $samples.CounterSamples) {
+  if ($cs.Status -eq 0 -and $cs.InstanceName -notin $IgnoreNames) {
+    [PSCustomObject]@{
+      Process    = $cs.InstanceName
+      CpuPercent = $cs.CookedValue
+    }
+  }
+}
+
+# 3) GROUP & AVERAGE BY PROCESS NAME
+$averages = $rawData |
+  Group-Object -Property Process |
+  Select-Object `
+    @{Name='Process';   Expression = { $_.Name }}, `
+    @{Name='AvgCPU(%)'; Expression = {
+       [Math]::Round( ($_.Group | Measure-Object -Property CpuPercent -Average).Average, 2 )
+    }} |
+  Sort-Object -Property 'AvgCPU(%)' -Descending
+
+# 4) AUGMENT WITH PID, EXECUTABLEPATH, COMMANDLINE
+$results = foreach ($row in $averages) {
+  $exeName = "$($row.Process).exe"
+  $procInfo = Get-CimInstance Win32_Process `
+    -Filter "Name = '$exeName'" `
+    -ErrorAction    SilentlyContinue |
+    Select-Object -First 1 ProcessId, ExecutablePath, CommandLine
+
+  # Ensure non-null strings
+  $path = if ($procInfo.ExecutablePath) { $procInfo.ExecutablePath } else { '' }
+  $cmd  = if ($procInfo.CommandLine)     { $procInfo.CommandLine }     else { '' }
+
+  [PSCustomObject]@{
+    Process         = $row.Process
+    'AvgCPU(%)'     = $row.'AvgCPU(%)'
+    PID             = $procInfo.ProcessId
+    ExecutablePath  = $path
+    CommandLine     = $cmd
+  }
+}
+
+# 5) CUSTOM ONE-LINER OUTPUT WITH FIXED SPACES
+#   {0,-20}  Process, left-aligned, width=20
+#   {1,10}   AvgCPU(%), right-aligned, width=10
+#   {2,8}    PID, right-aligned, width=8
+#   {3,-80}  ExecutablePath, left-aligned, width=80
+#   {4}      CommandLine, no fixed width
+#
+# Note the space after each } to separate columns.
+$fmt    = "{0,-20} {1,10} {2,8} {3,-80} {4}"
+$header = $fmt -f 'Process','AvgCPU(%)','PID','ExecutablePath','CommandLine'
+$sep    = ('-' * $header.Length)
+
+Write-Host "`nAverage % Processor Time over last $($SampleInterval * $MaxSamples) seconds:`n"
+Write-Host $header
+Write-Host $sep
+
+foreach ($r in $results) {
+  # Escape backslashes for display if desired:
+  $exePath = $r.ExecutablePath -replace '\\','\'
+  $cmdLine = $r.CommandLine
+
+  $line = $fmt -f `
+    $r.Process, `
+    $r.'AvgCPU(%)', `
+    $r.PID, `
+    $exePath, `
+    $cmdLine
+
+  Write-Host $line
+}

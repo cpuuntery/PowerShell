@@ -1,0 +1,34 @@
+# ----------------------------------------
+# ALL PROCESSES + Path + CommandLine Reporter
+# (PowerShell 5.1 compatible)
+# ----------------------------------------
+
+# 1) GET ALL RUNNING PROCESSES
+$allProcs = Get-CimInstance Win32_Process |
+  Select-Object Name, ProcessId, ExecutablePath, CommandLine |
+  Sort-Object Name
+
+# 2) SETUP FORMATTING
+#   {0,-20}  Process name, left-aligned width=20  
+#   {1,8}    PID, right-aligned width=8  
+#   {2,-80}  ExecutablePath, left-aligned width=80  
+#   {3}      CommandLine, no fixed width  
+$fmt    = "{0,-20} {1,8} {2,-80} {3}"
+$header = $fmt -f 'Process','PID','ExecutablePath','CommandLine'
+$sep    = '-' * $header.Length
+
+# 3) OUTPUT HEADER
+Write-Host $header
+Write-Host $sep
+
+# 4) OUTPUT EACH PROCESS, ONE LINE NO BLANKS
+foreach ($proc in $allProcs) {
+  # avoid read-only collisions
+  $procName = $proc.Name
+  $procId   = $proc.ProcessId
+  $exePath  = if ($proc.ExecutablePath) { $proc.ExecutablePath } else { '' }
+  $cmdLine  = if ($proc.CommandLine)     { $proc.CommandLine }     else { '' }
+
+  $line = $fmt -f $procName, $procId, $exePath, $cmdLine
+  Write-Host $line
+}

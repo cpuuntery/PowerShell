@@ -1,0 +1,114 @@
+<#
+.NOTES
+  - Run as Administrator for full visibility into all processes.
+  - Values >100% can occur on multi-core machines; divide by [Environment]::ProcessorCount for per-total-CPU %.
+#>
+
+# Parameters
+$SampleInterval = 1
+$MaxSamples     = 60
+$counterPath    = '\Process(*)\% Processor Time'
+$ignoreNames    = '_Total','Idle'   # instances to skip
+
+Write-Host "Collecting $MaxSamples samples at $SampleInterval-second intervals..."
+
+# 1) Collect raw data, suppressing invalid-sample warnings
+$samples = Get-Counter `
+    -Counter        $counterPath `
+    -SampleInterval $SampleInterval `
+    -MaxSamples     $MaxSamples `
+    -ErrorAction    SilentlyContinue
+
+# 2) Filter & flatten into PSCustomObject list
+$rawData = foreach ($cs in $samples.CounterSamples) {
+    if ($cs.Status -eq 0 -and $cs.InstanceName -notin $ignoreNames) {
+        [PSCustomObject]@{
+            Process    = $cs.InstanceName
+            CpuPercent = $cs.CookedValue
+        }
+    }
+}
+
+# 3) Group & average
+$averages = $rawData |
+    Group-Object -Property Process |
+    Select-Object `
+        @{Name='Process';   Expression={ $_.Name }},
+        @{Name='AvgCPU(%)'; Expression={
+            [Math]::Round(
+                ($_.Group | Measure-Object -Property CpuPercent -Average).Average
+            , 2)
+        }} |
+    Sort-Object -Property 'AvgCPU(%)' -Descending
+
+# 4) Display
+Write-Host "`nAverage % Processor Time over last $($SampleInterval * $MaxSamples) seconds:`n"
+$averages | Format-Table -AutoSize
+
+
+
+
+
+
+
+second way
+
+
+# CONFIGURATION
+$Iterations      = 60
+$SleepSeconds    = 1
+$CounterPath     = '\Process(*)\% Processor Time'
+$IgnoreNames     = '_Total','Idle'
+$CpuCount        = [Environment]::ProcessorCount
+
+Write-Host "Sampling up to $Iterations times at $SleepSeconds–second intervals..."
+
+# This will hold [Process, RawValue] for each successful sample
+$allData = [System.Collections.Generic.List[PSObject]]::new()
+
+for ($i = 1; $i -le $Iterations; $i++) {
+    # silently swallow all errors from Get-Counter
+    $result = Get-Counter -Counter $CounterPath `
+                          -MaxSamples 1 `
+                          -ErrorAction SilentlyContinue 2>$null
+
+    if (-not $result) {
+        # sample completely failed this second; skip it
+        Write-Host ("[{0}/{1}]  -- sample failed, skipping" -f $i, $Iterations) `
+                   -ForegroundColor Yellow
+    }
+    else {
+        foreach ($cs in $result.CounterSamples) {
+            # only keep valid statuses, skip Idle/_Total
+            if ($cs.Status -eq 0 -and $cs.InstanceName -notin $IgnoreNames) {
+                # normalize raw (0 .. CpuCount*100) down to (0..100)
+                $normalized = $cs.CookedValue / $CpuCount
+
+                $allData.Add(
+                  [PSCustomObject]@{
+                    Process    = $cs.InstanceName
+                    CpuPercent = $normalized
+                  }
+                )
+            }
+        }
+    }
+
+    Start-Sleep -Seconds $SleepSeconds
+}
+
+# Now group & average
+$averages = $allData |
+  Group-Object -Property Process |
+  Select-Object `
+    @{Name = 'Process';     Expression = {$_.Name}}, `
+    @{Name = 'AvgCPU(%)';   Expression = {
+        $avg = ($_.Group | Measure-Object -Property CpuPercent -Average).Average
+        # clamp at 100, round & format
+        "{0:N2}%" -f [Math]::Min($avg, 100)
+    }} |
+  Sort-Object { [double]($_.'AvgCPU(%)'.TrimEnd('%')) } -Descending
+
+# Display
+Write-Host "`nAverage CPU over last $($Iterations * $SleepSeconds)s:`n"
+$averages | Format-Table -AutoSize

@@ -1,0 +1,170 @@
+Get-Process | ForEach-Object {
+    try {
+        # Check if the process name is "GenshinImpact" (case-insensitive)
+        if ($_.Name -ieq "GenshinImpact") {
+            # Set GenshinImpact process to highest priority (High)
+            $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
+            Write-Output "Set process '$($_.Name)' (ID: $($_.Id)) to High priority."
+        }
+        else {
+            # Set all other processes to the lowest priority (Idle)
+            $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::Idle
+            Write-Output "Set process '$($_.Name)' (ID: $($_.Id)) to Idle priority."
+        }
+    }
+    catch {
+        # Output a warning message if the priority change fails (e.g., due to insufficient permissions)
+        Write-Warning "Could not change priority for process '$($_.Name)' (ID: $($_.Id)): $_"
+    }
+}
+
+
+
+
+
+Get-Process | ForEach-Object {
+    try {
+            # Set all other processes to the Normal priority (Normal)
+            $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::Normal
+            Write-Output "Set process '$($_.Name)' (ID: $($_.Id)) to Normal priority."
+        
+    }
+    catch {
+        # Output a warning message if the priority change fails (e.g., due to insufficient permissions)
+        Write-Warning "Could not change priority for process '$($_.Name)' (ID: $($_.Id)): $_"
+    }
+}
+
+
+
+
+
+
+
+
+# WARNING: Running this script may affect system stability.
+# It sets nearly every process to Idle priority and may interfere with critical system processes.
+# Run at your own risk and consider testing in a controlled environment.
+
+# Iterate over all processes
+Get-Process | ForEach-Object {
+    try {
+        # Check if the process name is "blender" (case-insensitive)
+        if ($_.Name -ieq "blender") {
+            # Set blender process to highest priority (RealTime)
+            $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
+            Write-Output "Set process '$($_.Name)' (ID: $($_.Id)) to RealTime priority."
+        }
+        else {
+            # Set all other processes to the lowest priority (Idle)
+            $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::Idle
+            Write-Output "Set process '$($_.Name)' (ID: $($_.Id)) to Idle priority."
+        }
+    }
+    catch {
+        # Output a warning message if the priority change fails (e.g., due to insufficient permissions)
+        Write-Warning "Could not change priority for process '$($_.Name)' (ID: $($_.Id)): $_"
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<#
+.SYNOPSIS
+    Set all processes to Idle priority, except Blender which is set to High.
+
+.DESCRIPTION
+    This script:
+    1. Verifies it is running with administrative privileges.
+    2. Retrieves all processes.
+    3. For each process, sets the priority to Idle.
+    4. If the process name is "blender" (case-insensitive), sets priority to High.
+    5. Silently continues on errors (e.g. system processes or protected processes).
+
+.NOTES
+    - You must run this script in an elevated (Administrator) PowerShell session.
+    - Idle is the lowest priority, High is near the top (just below RealTime).
+#>
+
+# Ensure script is running as administrator
+$currentUser = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
+    Write-Warning "This script must be run as Administrator. Exiting."
+    exit 1
+}
+
+# Retrieve all processes
+Write-Host "Retrieving processes..." -ForegroundColor Cyan
+$allProcs = Get-Process
+
+foreach ($proc in $allProcs) {
+    try {
+        # Determine target priority
+        if ($proc.ProcessName -ieq 'blender') {
+            $newPriority = 'High'
+        }
+        else {
+            $newPriority = 'Idle'
+        }
+
+        # Only change if different from current
+        if ($proc.PriorityClass -ne $newPriority) {
+            Write-Host ("Setting {0} (PID:{1}) from {2} to {3}." -f 
+                $proc.ProcessName, $proc.Id, $proc.PriorityClass, $newPriority)
+            $proc.PriorityClass = $newPriority
+        }
+    }
+    catch {
+        # Some processes (system, protected, etc.) cannot be changed—ignore errors
+        Write-Verbose ("Could not change priority of {0} (PID:{1}): {2}" -f 
+            $proc.ProcessName, $proc.Id, $_.Exception.Message)
+    }
+}
+
+Write-Host "Done." -ForegroundColor Green
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Set all processes to Low priority
+Get-Process | ForEach-Object {
+    try {
+        $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal
+    } catch {
+        Write-Host "Could not change priority for process: $($_.Name)"
+    }
+}
+
+# Set "blender" process to High priority
+$blenderProcess = Get-Process -Name "blender" -ErrorAction SilentlyContinue
+if ($blenderProcess) {
+    try {
+        $blenderProcess.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
+        Write-Host "Changed priority of 'blender' to High."
+    } catch {
+        Write-Host "Could not change priority for 'blender' process."
+    }
+} else {
+    Write-Host "'blender' process not found."
+}
