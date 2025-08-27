@@ -1,3 +1,10 @@
+$unescapedPath = "D:\filling the gaps in touhou\HARI\2022.10.09 [HARI-019A] プリズムリバー三姉妹のソロ! [東方紅楼夢18]"
+
+# Directly change directory without any escaping
+cd -LiteralPath $unescapedPath
+
+
+
 $unescapedpath = "D:\filling the gaps in touhou\HARI\2022.10.09 [HARI-019A] プリズムリバー三姉妹のソロ! [東方紅楼夢18]"
 
 function Escaped-Path {
@@ -45,6 +52,22 @@ function Escaped-Path {
 
 $escapedpath = Escaped-Path
 Invoke-Expression "cd $escapedpath"
+
+
+# i learned about this while writing another powershell script
+
+If you have any issue with the file path, just replace the parameter -Path with  -LiteralPath 
+
+the reason why because 
+
+-Path always treats its input as a wildcard pattern.
+
+-LiteralPath turns off wildcard expansion and passes the string directly to the filesystem.
+
+Any [ or ] in your path no longer triggers a WildcardPatternException.
+
+
+
 
 
 
