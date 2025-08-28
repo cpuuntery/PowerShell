@@ -2,6 +2,7 @@
 
 taget C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -WindowStyle Hidden -File "path of ps1"
 
-staart in path to the folder that contin the ps1 file
+start in path to the folder that contin the ps1 file
+
 
 run mimmized
