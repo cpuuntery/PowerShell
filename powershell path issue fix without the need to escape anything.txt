@@ -1,0 +1,9 @@
+If you have any issue with the file path, just replace the parameter -Path with  -LiteralPath 
+
+the reason why because 
+
+-Path always treats its input as a wildcard pattern.
+
+-LiteralPath turns off wildcard expansion and passes the string directly to the filesystem.
+
+Any [ or ] in your path no longer triggers a WildcardPatternException.

@@ -1,0 +1,1057 @@
+# Set your two folder paths here
+$folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+function Get-HashSet {
+    param([string]$RootFolder)
+    $set = @{}
+    Get-ChildItem -LiteralPath $RootFolder -Recurse -File | ForEach-Object {
+        $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+        if (-not $set.ContainsKey($hash)) {
+            $set[$hash] = @()
+        }
+        $set[$hash] += $_.FullName
+    }
+    return $set
+}
+
+$hashes1 = Get-HashSet -RootFolder $folder1
+$hashes2 = Get-HashSet -RootFolder $folder2
+
+# Compare hash keys
+$onlyIn1 = $hashes1.Keys | Where-Object { -not $hashes2.ContainsKey($_) }
+$onlyIn2 = $hashes2.Keys | Where-Object { -not $hashes1.ContainsKey($_) }
+$inBoth  = $hashes1.Keys | Where-Object { $hashes2.ContainsKey($_) }
+
+# Output hashes that exist only in one folder
+foreach ($h in $onlyIn1) {
+    foreach ($path in $hashes1[$h]) {
+        Write-Output "$h`t$path`t[exists only in 1st folder]"
+    }
+}
+foreach ($h in $onlyIn2) {
+    foreach ($path in $hashes2[$h]) {
+        Write-Output "$h`t$path`t[exists only in 2nd folder]"
+    }
+}
+
+################################################################################################
+
+# Compare by hash for existence, plus check same-name files for different hashes
+# Colorized output: Yellow = unique files, Red = same-name different hashes
+
+$Folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$Folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+$Algorithm = 'SHA256'
+$ErrorActionPreference = 'Stop'
+
+function Get-FileHashes {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$Algorithm
+    )
+
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) {
+        throw "Folder not found: $Root"
+    }
+
+    $files = @()
+    Get-ChildItem -LiteralPath $Root -File -Recurse | ForEach-Object {
+        $hashValue = (Get-FileHash -LiteralPath $_.FullName -Algorithm $Algorithm).Hash
+        $files += [pscustomobject]@{
+            Name     = $_.Name
+            FullName = $_.FullName
+            Hash     = $hashValue
+        }
+    }
+    return $files
+}
+
+# Get file lists
+$list1 = Get-FileHashes -Root $Folder1 -Algorithm $Algorithm
+$list2 = Get-FileHashes -Root $Folder2 -Algorithm $Algorithm
+
+# Build hash sets for existence comparison
+$hashSet1 = $list1.Hash
+$hashSet2 = $list2.Hash
+
+# --- 1. Unique files by hash ---
+Write-Host "`n=== Unique files by hash ===`n" -ForegroundColor Yellow
+
+foreach ($item in $list1) {
+    if (-not ($hashSet2 -contains $item.Hash)) {
+        Write-Host ("{0} {1} [exist only in the 1st folder]" -f $item.FullName, $item.Hash) -ForegroundColor Yellow
+    }
+}
+foreach ($item in $list2) {
+    if (-not ($hashSet1 -contains $item.Hash)) {
+        Write-Host ("{0} {1} [exist only in the 2nd folder]" -f $item.FullName, $item.Hash) -ForegroundColor Yellow
+    }
+}
+
+# Blank line before next section
+Write-Host "`n=== Same-name files with different content ===`n" -ForegroundColor Red
+
+# --- 2. Same-name, different hash ---
+# Group files from both lists by name
+$nameGroups = @{}
+
+foreach ($item in $list1) {
+    if (-not $nameGroups.ContainsKey($item.Name)) {
+        $nameGroups[$item.Name] = @{ Folder1 = @(); Folder2 = @() }
+    }
+    $nameGroups[$item.Name].Folder1 += $item
+}
+
+foreach ($item in $list2) {
+    if (-not $nameGroups.ContainsKey($item.Name)) {
+        $nameGroups[$item.Name] = @{ Folder1 = @(); Folder2 = @() }
+    }
+    $nameGroups[$item.Name].Folder2 += $item
+}
+
+# Check for same name, different hash
+foreach ($name in $nameGroups.Keys) {
+    $f1Items = $nameGroups[$name].Folder1
+    $f2Items = $nameGroups[$name].Folder2
+
+    if ($f1Items.Count -gt 0 -and $f2Items.Count -gt 0) {
+        foreach ($f1 in $f1Items) {
+            foreach ($f2 in $f2Items) {
+                if ($f1.Hash -ne $f2.Hash) {
+                    Write-Host ("File '{0}' has different hashes:" -f $name) -ForegroundColor Red
+                    Write-Host ("  1st folder: {0}" -f $f1.FullName) -ForegroundColor Red
+                    Write-Host ("  2nd folder: {0}" -f $f2.FullName) -ForegroundColor Red
+                    Write-Host ("  Hash1: {0}" -f $f1.Hash) -ForegroundColor Red
+                    Write-Host ("  Hash2: {0}" -f $f2.Hash) -ForegroundColor Red
+                    Write-Host "" -ForegroundColor Red
+                }
+            }
+        }
+    }
+}
+
+################################################################################################
+
+# Declare the two folder paths
+$folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+function Get-HashIndex {
+    param([string]$RootFolder)
+    $hashIndex = @{}      # hash -> list of full paths
+    $nameIndex = @{}      # name -> list of objects { Hash, Path }
+    Get-ChildItem -LiteralPath $RootFolder -Recurse -File | ForEach-Object {
+        $full = $_.FullName
+        $name = $_.Name
+        $hash = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
+
+        # Build hash index
+        if (-not $hashIndex.ContainsKey($hash)) {
+            $hashIndex[$hash] = @()
+        }
+        $hashIndex[$hash] += $full
+
+        # Build name index
+        if (-not $nameIndex.ContainsKey($name)) {
+            $nameIndex[$name] = @()
+        }
+        $nameIndex[$name] += [pscustomobject]@{ Hash = $hash; Path = $full }
+    }
+    return @{ HashIndex = $hashIndex; NameIndex = $nameIndex }
+}
+
+$data1 = Get-HashIndex -RootFolder $folder1
+$data2 = Get-HashIndex -RootFolder $folder2
+
+# 1. Files by hash only in one folder
+$onlyIn1 = $data1.HashIndex.Keys | Where-Object { -not $data2.HashIndex.ContainsKey($_) }
+$onlyIn2 = $data2.HashIndex.Keys | Where-Object { -not $data1.HashIndex.ContainsKey($_) }
+
+foreach ($h in $onlyIn1) {
+    foreach ($p in $data1.HashIndex[$h]) {
+        Write-Output "$h`t$p`t[exists only in 1st folder]"
+    }
+}
+foreach ($h in $onlyIn2) {
+    foreach ($p in $data2.HashIndex[$h]) {
+        Write-Output "$h`t$p`t[exists only in 2nd folder]"
+    }
+}
+
+# Add a blank line separator
+Write-Output ""
+
+# 2. Files with same name but different hash
+$allNames = $data1.NameIndex.Keys + $data2.NameIndex.Keys | Sort-Object -Unique
+foreach ($name in $allNames) {
+    $entries1 = $data1.NameIndex[$name]
+    $entries2 = $data2.NameIndex[$name]
+    if ($entries1 -and $entries2) {
+        $hashes1 = $entries1.Hash | Sort-Object -Unique
+        $hashes2 = $entries2.Hash | Sort-Object -Unique
+        if (-not ($hashes1 -eq $hashes2)) {
+            foreach ($e1 in $entries1) {
+                Write-Output "$name`t$($e1.Path)`t1st hash: $($e1.Hash)"
+            }
+            foreach ($e2 in $entries2) {
+                Write-Output "$name`t$($e2.Path)`t2nd hash: $($e2.Hash)"
+            }
+        }
+    }
+}
+
+################################################################################################
+
+# Initialize folder paths
+$folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Function to safely get files and hashes
+function Get-FileHashDictionary {
+    param(
+        [string]$FolderPath,
+        [string]$FolderName
+    )
+
+    $dict = @{}
+    try {
+        $files = Get-ChildItem -LiteralPath $FolderPath -Recurse -File -ErrorAction Stop
+    }
+    catch {
+        Write-Error "Error accessing path '$FolderPath': $_"
+        return $dict
+    }
+
+    foreach ($file in $files) {
+        $name = $file.Name
+        if ($dict.ContainsKey($name)) {
+            Write-Warning "Duplicate filename '$name' found in $FolderName. Only first occurrence will be processed."
+        }
+        else {
+            try {
+                $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+                $dict[$name] = @{
+                    Hash = $hash
+                    FullPath = $file.FullName
+                }
+            }
+            catch {
+                Write-Warning "Could not hash file '$($file.FullName)': $_"
+            }
+        }
+    }
+    return $dict
+}
+
+# Get file hashes for both folders
+Write-Host "Hashing files in $folder1..." -ForegroundColor Cyan
+$dict1 = Get-FileHashDictionary -FolderPath $folder1 -FolderName "Folder1"
+
+Write-Host "Hashing files in $folder2..." -ForegroundColor Cyan
+$dict2 = Get-FileHashDictionary -FolderPath $folder2 -FolderName "Folder2"
+
+# Initialize results array
+$results = @()
+
+# Process files missing in Folder2
+$results += $dict1.Keys | Where-Object { -not $dict2.ContainsKey($_) } | ForEach-Object {
+    [PSCustomObject]@{
+        FileName = $_
+        Status   = "Only in Folder1"
+        FullPath = $dict1[$_].FullPath
+        Hash     = $dict1[$_].Hash
+    }
+}
+
+# Process files missing in Folder1
+$results += $dict2.Keys | Where-Object { -not $dict1.ContainsKey($_) } | ForEach-Object {
+    [PSCustomObject]@{
+        FileName = $_
+        Status   = "Only in Folder2"
+        FullPath = $dict2[$_].FullPath
+        Hash     = $dict2[$_].Hash
+    }
+}
+
+# Process conflicting hashes
+$results += $dict1.Keys | Where-Object { $dict2.ContainsKey($_) } | ForEach-Object {
+    if ($dict1[$_].Hash -ne $dict2[$_].Hash) {
+        [PSCustomObject]@{
+            FileName = $_
+            Status   = "Hash conflict"
+            FullPath = $dict1[$_].FullPath
+            FullPath2 = $dict2[$_].FullPath
+            Hash     = $dict1[$_].Hash
+            Hash2    = $dict2[$_].Hash
+        }
+    }
+}
+
+# Display results
+if ($results) {
+    Write-Host "`nComparison Results:" -ForegroundColor Green
+    $results | Format-Table -AutoSize -Property FileName, Status, FullPath, Hash, FullPath2, Hash2
+    Write-Host "Total differences found: $($results.Count)" -ForegroundColor Yellow
+}
+else {
+    Write-Host "`nNo differences found between folders." -ForegroundColor Green
+}
+
+################################################################################################
+
+# Initialize folder path variables
+$Folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$Folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Function to get file hash and name recursively from a folder
+function Get-FileHashList {
+    param (
+        [string]$FolderPath,
+        [string]$FolderName
+    )
+    
+    $results = @()
+    
+    # Get all files recursively using -LiteralPath
+    $files = Get-ChildItem -LiteralPath $FolderPath -File -Recurse
+    
+    foreach ($file in $files) {
+        try {
+            $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+            $results += [PSCustomObject]@{
+                FileName = $file.Name
+                FilePath = $file.FullName
+                Hash = $hash
+                SourceFolder = $FolderName
+            }
+        }
+        catch {
+            Write-Warning "Failed to hash file: $($file.FullName) - $($_.Exception.Message)"
+        }
+    }
+    
+    return $results
+}
+
+# Get hash lists from both folders
+Write-Host "Processing Folder1: $Folder1" -ForegroundColor Yellow
+$folder1Files = Get-FileHashList -FolderPath $Folder1 -FolderName "Folder1"
+
+Write-Host "Processing Folder2: $Folder2" -ForegroundColor Yellow
+$folder2Files = Get-FileHashList -FolderPath $Folder2 -FolderName "Folder2"
+
+Write-Host "`nComparison Results:" -ForegroundColor Green
+Write-Host "==================" -ForegroundColor Green
+
+Write-Host "`n=== MISSING FILES ===" -ForegroundColor Cyan
+
+# Find missing files (files that exist in one folder but not the other based on hash)
+$folder1Hashes = $folder1Files.Hash
+$folder2Hashes = $folder2Files.Hash
+
+# Files missing from Folder2 (hashes in Folder1 but not in Folder2)
+$missingInFolder2 = $folder1Files | Where-Object { $_.Hash -notin $folder2Hashes }
+
+# Files missing from Folder1 (hashes in Folder2 but not in Folder1)
+$missingInFolder1 = $folder2Files | Where-Object { $_.Hash -notin $folder1Hashes }
+
+# Display missing files
+if ($missingInFolder2.Count -gt 0) {
+    foreach ($file in $missingInFolder2) {
+        Write-Host "`nFiles missing from Folder2:" -ForegroundColor Red
+        Write-Host "File: $($file.FileName)" -ForegroundColor Red
+        Write-Host "Path: $($file.FilePath)" -ForegroundColor Yellow
+        Write-Host "Hash: $($file.Hash)" -ForegroundColor Cyan
+        Write-Output ""
+    }
+}
+
+if ($missingInFolder1.Count -gt 0) {
+    foreach ($file in $missingInFolder1) {
+        Write-Host "`nFiles missing from Folder1:" -ForegroundColor Red
+        Write-Host "File: $($file.FileName)" -ForegroundColor Red
+        Write-Host "Path: $($file.FilePath)" -ForegroundColor Yellow
+        Write-Host "Hash: $($file.Hash)" -ForegroundColor Cyan
+        Write-Output ""
+    }
+}
+
+if ($missingInFolder2.Count -eq 0 -and $missingInFolder1.Count -eq 0) {
+    Write-Host "`nNo missing files found between folders." -ForegroundColor Green
+}
+
+# Find corrupted files (same filename but different hash)
+$corruptedFiles = @()
+
+foreach ($file1 in $folder1Files) {
+    $matchingFile2 = $folder2Files | Where-Object { $_.FileName -eq $file1.FileName }
+    
+    if ($matchingFile2) {
+        foreach ($file2 in $matchingFile2) {
+            if ($file1.Hash -ne $file2.Hash) {
+                $corruptedFiles += [PSCustomObject]@{
+                    FileName = $file1.FileName
+                    Folder1Path = $file1.FilePath
+                    Folder1Hash = $file1.Hash
+                    Folder2Path = $file2.FilePath
+                    Folder2Hash = $file2.Hash
+                }
+            }
+        }
+    }
+}
+
+# Display corrupted files
+if ($corruptedFiles.Count -gt 0) {
+    Write-Host "`nCorrupted files (same name, different hash):" -ForegroundColor Magenta
+    Write-Output ""
+    foreach ($file in $corruptedFiles) {
+        Write-Host "File: $($file.FileName)" -ForegroundColor Red
+        Write-Host "Folder1 Path: $($file.Folder1Path)" -ForegroundColor Yellow
+        Write-Host "Folder2 Path: $($file.Folder2Path)" -ForegroundColor Yellow
+        Write-Host "Folder1 Hash: $($file.Folder1Hash)" -ForegroundColor Cyan
+        Write-Host "Folder2 Hash: $($file.Folder2Hash)" -ForegroundColor Cyan
+        Write-Output ""
+    }
+} else {
+    Write-Host "`nNo corrupted files found (all files with same names have matching hashes)." -ForegroundColor Green
+}
+
+# Summary
+Write-Host "`nSummary:" -ForegroundColor Green
+Write-Host "========" -ForegroundColor Green
+Write-Host "Folder1 files processed: $($folder1Files.Count)" -ForegroundColor White
+Write-Host "Folder2 files processed: $($folder2Files.Count)" -ForegroundColor White
+Write-Host "Files missing from Folder2: $($missingInFolder2.Count)" -ForegroundColor $(if($missingInFolder2.Count -gt 0){"Red"}else{"Green"})
+Write-Host "Files missing from Folder1: $($missingInFolder1.Count)" -ForegroundColor $(if($missingInFolder1.Count -gt 0){"Red"}else{"Green"})
+Write-Host "Corrupted files found: $($corruptedFiles.Count)" -ForegroundColor $(if($corruptedFiles.Count -gt 0){"Red"}else{"Green"})
+
+################################################################################################
+
+# Initialize folder path variables
+$Folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$Folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Helper function to get file info and hash for all files in a folder
+function Get-FileHashTable {
+    param (
+        [string]$Folder
+    )
+    $files = Get-ChildItem -LiteralPath $Folder -Recurse -File
+    $hashTable = @{}
+    foreach ($file in $files) {
+        $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName
+        $hashTable[$file.FullName] = [PSCustomObject]@{
+            Name = $file.Name
+            Path = $file.FullName
+            Hash = $hash.Hash
+        }
+    }
+    return $hashTable
+}
+
+# Get file info and hashes for both folders
+$Files1 = Get-FileHashTable -Folder $Folder1
+$Files2 = Get-FileHashTable -Folder $Folder2
+
+# Build hash-to-file maps for both folders
+$HashToFile1 = @{}
+$Files1.Values | ForEach-Object {
+    if (-not $HashToFile1.ContainsKey($_.Hash)) { $HashToFile1[$_.Hash] = @() }
+    $HashToFile1[$_.Hash] += $_
+}
+$HashToFile2 = @{}
+$Files2.Values | ForEach-Object {
+    if (-not $HashToFile2.ContainsKey($_.Hash)) { $HashToFile2[$_.Hash] = @() }
+    $HashToFile2[$_.Hash] += $_
+}
+
+Write-Host "=== Missing Files (by hash) ===" -ForegroundColor Cyan
+
+# Find hashes in Folder1 missing from Folder2
+foreach ($hash in $HashToFile1.Keys) {
+    if (-not $HashToFile2.ContainsKey($hash)) {
+        foreach ($file in $HashToFile1[$hash]) {
+            Write-Host "Missing in Folder2:" -ForegroundColor Yellow
+            Write-Host "  Name: $($file.Name)"
+            Write-Host "  Path: $($file.Path)"
+            Write-Host "  Hash: $($file.Hash)"
+        }
+    }
+}
+# Find hashes in Folder2 missing from Folder1
+foreach ($hash in $HashToFile2.Keys) {
+    if (-not $HashToFile1.ContainsKey($hash)) {
+        foreach ($file in $HashToFile2[$hash]) {
+            Write-Host "Missing in Folder1:" -ForegroundColor Yellow
+            Write-Host "  Name: $($file.Name)"
+            Write-Host "  Path: $($file.Path)"
+            Write-Host "  Hash: $($file.Hash)"
+        }
+    }
+}
+
+Write-Host "`n=== Corrupted Files (same name, different hash) ===" -ForegroundColor Cyan
+
+# Build name-to-file maps for both folders
+$NameToFile1 = @{}
+$Files1.Values | ForEach-Object {
+    if (-not $NameToFile1.ContainsKey($_.Name)) { $NameToFile1[$_.Name] = @() }
+    $NameToFile1[$_.Name] += $_
+}
+$NameToFile2 = @{}
+$Files2.Values | ForEach-Object {
+    if (-not $NameToFile2.ContainsKey($_.Name)) { $NameToFile2[$_.Name] = @() }
+    $NameToFile2[$_.Name] += $_
+}
+
+# Compare files with the same name in both folders
+foreach ($name in $NameToFile1.Keys) {
+    if ($NameToFile2.ContainsKey($name)) {
+        foreach ($file1 in $NameToFile1[$name]) {
+            foreach ($file2 in $NameToFile2[$name]) {
+                if ($file1.Hash -ne $file2.Hash) {
+                    Write-Host "Corrupted file detected:" -ForegroundColor Red
+                    Write-Host "  Name: $name"
+                    Write-Host "  Folder1 Path: $($file1.Path)"
+                    Write-Host "  Folder2 Path: $($file2.Path)"
+                    Write-Host "  Folder1 Path: $($file1.Hash)"
+                    Write-Host "  Folder2 Hash: $($file2.Hash)"
+                }
+            }
+        }
+    }
+}
+
+################################################################################################
+
+# Initialize folder path variables
+$Folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$Folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Function to get file hash and name
+function Get-FileHashList {
+    param($Path)
+    
+    $files = Get-ChildItem -LiteralPath $Path -File -Recurse
+    $hashList = @{}
+    
+    foreach ($file in $files) {
+        try {
+            $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+            $hashList[$hash] = @{
+                Name = $file.Name
+                Path = $file.FullName
+                Hash = $hash
+            }
+        }
+        catch {
+            Write-Warning "Could not calculate hash for: $($file.FullName)"
+        }
+    }
+    
+    return $hashList
+}
+
+# Function to get file name and hash mapping
+function Get-FileNameHashList {
+    param($Path)
+    
+    $files = Get-ChildItem -LiteralPath $Path -File -Recurse
+    $nameList = @{}
+    
+    foreach ($file in $files) {
+        try {
+            $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+            $nameList[$file.Name] = @{
+                Hash = $hash
+                Path = $file.FullName
+                Name = $file.Name
+            }
+        }
+        catch {
+            Write-Warning "Could not calculate hash for: $($file.FullName)"
+        }
+    }
+    
+    return $nameList
+}
+
+# Get hash lists for both folders
+Write-Host "Calculating hashes for Folder1..." -ForegroundColor Yellow
+$hashList1 = Get-FileHashList -Path $Folder1
+Write-Host "Folder1: $($hashList1.Count) files processed" -ForegroundColor Green
+
+Write-Host "Calculating hashes for Folder2..." -ForegroundColor Yellow
+$hashList2 = Get-FileHashList -Path $Folder2
+Write-Host "Folder2: $($hashList2.Count) files processed" -ForegroundColor Green
+
+# Get name-hash lists for both folders
+Write-Host "Creating name-hash mappings..." -ForegroundColor Yellow
+$nameList1 = Get-FileNameHashList -Path $Folder1
+$nameList2 = Get-FileNameHashList -Path $Folder2
+
+# Compare 1: Find files that exist in one folder but not the other (byby hash)
+Write-Host "`n=== MISSING FILES ANALYSIS ===" -ForegroundColor Cyan
+
+# Files in Folder1 but not in Folder2
+$missingInFolder2 = $hashList1.Keys | Where-Object { $hashList2.Keys -notcontains $_ }
+if ($missingInFolder2.Count -gt 0) {
+    Write-Host "`nFiles found in Folder1 but missing from Folder2:" -ForegroundColor Red
+    foreach ($hash in $missingInFolder2) {
+        $fileInfo = $hashList1[$hash]
+        Write-Host "File: $($fileInfo.Name)" -ForegroundColor Yellow
+        Write-Host "Location: Folder1" -ForegroundColor Gray
+        Write-Host "Path: $($fileInfo.Path)" -ForegroundColor Gray
+        Write-Host "Hash: $($fileInfo.Hash)" -ForegroundColor Gray
+        Write-Host "---"
+    }
+} else {
+    Write-Host "No files missing from Folder2 (all Folder1 files exist in Folder2)" -ForegroundColor Green
+}
+
+# Files in Folder2 but not in Folder1
+$missingmissingInFolder1 = $hashList2.Keys | Where-Object { $hashList1.Keys -notcontains $_ }
+if ($missingInFolder1.Count -gt 0) {
+    Write-Host "`nFiles found in Folder2 but missing from Folder1:" -ForegroundColor Red
+    foreach ($hash in $missingInFolder1) {
+        $fileInfo = $hashList2[$hash]
+        Write-Host "File: $($fileInfo.Name)" -ForegroundColor Yellow
+        Write-Host "Location: Folder2" -ForegroundColor Gray
+        Write-Host "Path: $($fileInfo.Path)" -ForegroundColor Gray
+        Write-Host "Hash: $($fileInfo.Hash)" -ForegroundColor Gray
+        Write-Host "---"
+    }
+} else {
+    Write-Host "No files missing from Folder1 (all Folder2 files files exist in Folder1)" -ForegroundColor Green
+}
+
+# Compare 2: Find files with same name but different hash (corrupted files)
+Write-Host "`n=== CORRUPTED FILES ANALYSIS ===" -ForegroundColor Cyan
+
+$corruptedFiles = @()
+$commonNames = $nameList1.Keys | Where-Object { $nameList2.Keys -contains $_ }
+
+foreach ($name in $commonNames) {
+    if ($nameList1[$name].Hash -ne $nameList2[$name].Hash) {
+        $corruptedFiles += @{
+            Name = $name
+            Hash1 = $nameList1[$name].Hash
+            Hash2 = $nameList2[$name].Hash
+            Path1 = $nameList1[$name].Path
+            Path2 = $nameList2[$name].Path
+        }
+    }
+}
+
+if ($corruptedFiles.Count -gt 0) {
+    Write-Host "`nCorrupted files (same name, different hash):" -ForegroundColor Red
+    foreach ($file in $corruptedFiles) {
+        Write-Host "File: $($file.Name)" -ForegroundColor Yellow
+        Write-Host "Folder1 Hash: $($file.Hash1)" -ForegroundColor Gray
+        Write-Host "Folder2 Hash: $($file.Hash2)" -ForegroundColor Gray
+        Write-Host "Folder1 Path: $($file.Path1)" -ForegroundColor Gray
+        Write-Host "Folder2 Path: $($file.Path2)" -ForegroundColor Gray
+        Write-Host "---"
+    }
+} else {
+    Write-Host "No corrupted files found (all files with same names have identical hashes)" -ForegroundColor Green
+}
+
+# Summary
+Write-Host "`n=== SUMMARY ===" -ForegroundColor Cyan
+Write-Host "Total files in Folder1: $($hashList1.Count)" -ForegroundColor White
+Write-Host "Total files in Folder2: $($hashList2.Count)" -ForegroundColor White
+Write-Host "Files missing from Folder2: $($missingInFolder2.Count)" -ForegroundColor $(if($missingInFolder2.Count -gt 0){'Red'}else{'Green'})
+Write-Host "Files missing from Folder1: $($missingInFolder1.Count)" -ForegroundColor $(if($missingInFolder1.Count -gt 0){'Red'}else{'Green'})
+Write-Host "Corrupted files: $($corruptedFiles.Count)" -ForegroundColorColor $(if($corruptedFiles.Count -gt 0){'Red'}else{'Green'})
+
+################################################################################################
+
+# Initialize folder path variables
+$folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Function to get file hashes recursively
+function Get-FileHashes {
+    param(
+        [string]$FolderPath
+    )
+    
+    $files = Get-ChildItem -LiteralPath $FolderPath -File -Recurse
+    $hashList = @()
+    
+    foreach ($file in $files) {
+        try {
+            $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256
+            $hashList += [PSCustomObject]@{
+                Name = $file.Name
+                FullName = $file.FullName
+                Hash = $hash.Hash
+            }
+        }
+        catch {
+            Write-Warning "Could not calculate hash for file: $($file.FullName)"
+        }
+    }
+    
+    return $hashList
+}
+
+# Get hash lists for both folders
+Write-Host "Calculating hashes for Folder 1..." -ForegroundColor Yellow
+$folder1Hashes = Get-FileHashes -FolderPath $folder1
+
+Write-Host "Calculating hashes for Folder 2..." -ForegroundColor Yellow
+$folder2Hashes = Get-FileHashes -FolderPath $folder2
+
+Write-Host "Folder 1 contains $($folder1Hashes.Count) files" -ForegroundColor Green
+Write-Host "Folder 2 contains $($folder2Hashes.Count) files" -ForegroundColor Green
+
+# Create hash lookup tables for efficient comparison
+$folder1HashLookup = @{}
+$folder2HashLookup = @{}
+
+foreach ($item in $folder1Hashes) {
+    $folder1HashLookup[$item.Hash] = $item
+}
+
+foreach ($item in $folder2Hashes) {
+    $folder2HashLookup[$item.Hash] = $item
+}
+
+# Find missing files (hashes that exist in one folder but not the other)
+Write-Host "`n=== MISSING FILES ===" -ForegroundColor Cyan
+
+$missingInFolder2 = @()
+$missingInFolder1 = @()
+
+# Find files in folder1 that are missing from folder2 (by hash)
+foreach ($hash in $folder1HashLookup.Keys) {
+    if (-not $folder2HashLookup.ContainsKey($hash)) {
+        $missingInFolder2 += $folder1HashLookup[$hash]
+    }
+}
+
+# Find files in folder2 that are missing from folder1 (by hash)
+foreach ($hash in $folder2HashLookup.Keys) {
+    if (-not $folder1HashLookup.ContainsKey($hash)) {
+        $missingInFolder1 += $folder2HashLookup[$hash]
+    }
+}
+
+# Display missing files
+if ($missingInFolder2.Count -gt 0) {
+    Write-Host "`nFiles missing in Folder 2:" -ForegroundColor Red
+    foreach ($file in $missingInFolder2) {
+        Write-Host "  Name: $($file.Name)" -ForegroundColor Red
+        Write-Host "  Location: Folder 1" -ForegroundColor Red
+        Write-Host "  Path: $($file.FullName)" -ForegroundColor Red
+        Write-Host "  Hash: $($file.Hash)" -ForegroundColor Red
+        Write-Host ""
+    }
+}
+
+if ($missingInFolder1.Count -gt 0) {
+    Write-Host "`nFiles missing in Folder 1:" -ForegroundColor Red
+    foreach ($file in $missingInFolder1) {
+        Write-Host "  Name: $($file.Name)" -ForegroundColor Red
+        Write-Host "  Location: Folder 2" -ForegroundColor Red
+        Write-Host "  Path: $($file.FullName)" -ForegroundColor Red
+        Write-Host "  Hash: $($file.Hash)" -ForegroundColor Red
+        Write-Host ""
+    }
+}
+
+if ($missingInFolder1.Count -eq 0 -and $missingInFolder2.Count -eq 0) {
+    Write-Host "No missing files found between the two folders." -ForegroundColor Green
+}
+
+# Find corrupted files (same name but different hash)
+Write-Host "`n=== CORRUPTED/CHANGED FILES ===" -ForegroundColor Cyan
+
+# Create name lookup tables
+$folder1NameLookup = @{}
+$folder2NameLookup = @{}
+
+foreach ($item in $folder1Hashes) {
+    # Handle duplicate names by keeping them in an array
+    if ($folder1NameLookup.ContainsKey($item.Name)) {
+        if ($folder1NameLookup[$item.Name] -is [array]) {
+            $folder1NameLookup[$item.Name] += $item
+        } else {
+            $folder1NameLookup[$item.Name] = @($folder1NameLookup[$item.Name], $item)
+        }
+    } else {
+        $folder1NameLookup[$item.Name] = $item
+    }
+}
+
+foreach ($item in $folder2Hashes) {
+    # Handle duplicate names by keeping them in an array
+    if ($folder2NameLookup.ContainsKey($item.Name)) {
+        if ($folder2NameLookup[$item.Name] -is [array]) {
+            $folder2NameLookup[$item.Name] += $item
+        } else {
+            $folder2NameLookup[$item.Name] = @($folder2NameLookup[$item.Name], $item)
+        }
+    } else {
+        $folder2NameLookup[$item.Name] = $item
+    }
+}
+
+$corruptedFiles = @()
+
+# Compare files with same names
+$allNames = ($folder1NameLookup.Keys + $folder2NameLookup.Keys) | Sort-Object -Unique
+
+foreach ($name in $allNames) {
+    $folder1Items = $folder1NameLookup[$name]
+    $folder2Items = $folder2NameLookup[$name]
+    
+    # Convert to arrays if they're not already
+    if ($folder1Items -and $folder1Items -isnot [array]) {
+        $folder1Items = @($folder1Items)
+    }
+    if ($folder2Items -and $folder2Items -isnot [array]) {
+        $folder2Items = @($folder2Items)
+    }
+    
+    # If file exists in both folders, compare hashes
+    if ($folder1Items -and $folder2Items) {
+        foreach ($item1 in $folder1Items) {
+            $matchFound = $false
+            foreach ($item2 in $folder2Items) {
+                if ($item1.Hash -eq $item2.Hash) {
+                    $matchFound = $true
+                    break
+                }
+            }
+            if (-not $matchFound) {
+                # Find the corresponding item in folder2 for display
+                $correspondingItem = $folder2Items[0]
+                $corruptedFiles += [PSCustomObject]@{
+                    Name = $name
+                    Folder1Path = $item1.FullName
+                    Folder1Hash = $item1.Hash
+                    Folder2Path = $correspondingItem.FullName
+                    Folder2Hash = $correspondingItem.Hash
+                }
+            }
+        }
+    }
+}
+
+# Display corrupted files
+if ($corruptedFiles.Count -gt 0) {
+    Write-Host "`nFiles with same name but different hashes (potentially corrupted):" -ForegroundColor Red
+    foreach ($file in $corruptedFiles) {
+        Write-Host "  Name: $($file.Name)" -ForegroundColor Red
+        Write-Host "  Folder 1 Path: $($file.Folder1Path)" -ForegroundColor Red
+        Write-Host "  Folder 2 Path: $($file.Folder2Path)" -ForegroundColor Red
+        Write-Host "  Folder 1 Hash: $($file.Folder1Hash)" -ForegroundColor Red
+        Write-Host "  Folder 2 Hash: $($file.Folder2Hash)" -ForegroundColor Red
+        Write-Host ""
+    }
+} else {
+    Write-Host "No corrupted files found (all files with same names have matching hashes)." -ForegroundColor Green
+}
+
+Write-Host "`n=== SUMMARY ===" -ForegroundColor Cyan
+Write-Host "Missing files in Folder 2: $($missingInFolder2.Count)" -ForegroundColor Yellow
+Write-Host "Missing files in Folder 1: $($missingInFolder1.Count)" -ForegroundColor Yellow
+Write-Host "Corrupted/Changed files: $($corruptedFiles.Count)" -ForegroundColor Yellow
+
+################################################################################################
+
+# Initialize folder path variables
+$folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Validate folder paths
+if (-not (Test-Path -LiteralPath $folder1 -PathType Container)) { throw "Folder1 path is invalid: $folder1" }
+if (-not (Test-Path -LiteralPath $folder2 -PathType Container)) { throw "Folder2 path is invalid: $folder2" }
+
+# Create hash dictionaries (hash -> [name, path])
+$hashDict1 = @{}
+$hashDict2 = @{}
+
+# Create name dictionaries (name -> [hash, path])
+$nameDict1 = @{}
+$nameDict2 = @{}
+
+# Process folder1 with LiteralPath handling
+Get-ChildItem -LiteralPath $folder1 -File -Recurse | ForEach-Object {
+    $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+    $name = $_.Name
+    
+    # For hash-based comparison (Type 1)
+    if (-not $hashDict1.ContainsKey($hash)) {
+        $hashDict1[$hash] = [PSCustomObject]@{
+            Name = $name
+            Path = $_.FullName
+        }
+    }
+    
+    # For name-based comparison (Type 2)
+    if ($nameDict1.ContainsKey($name)) {
+        Write-Warning "Duplicate filename in folder1: $name (using last occurrence)"
+    }
+    $nameDict1[$name] = [PSCustomObject]@{
+        Hash = $hash
+        Path = $_.FullName
+    }
+}
+
+# Process folder2 with LiteralPath handling
+Get-ChildItem -LiteralPath $folder2 -File -Recurse | ForEach-Object {
+    $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+    $name = $_.Name
+    
+    # For hash-based comparison (Type 1)
+    if (-not $hashDict2.ContainsKey($hash)) {
+        $hashDict2[$hash] = [PSCustomObject]@{
+            Name = $name
+            Path = $_.FullName
+        }
+    }
+    
+    # For name-based comparison (Type 2)
+    if ($nameDict2.ContainsKey($name)) {
+        Write-Warning "Duplicate filename in folder2: $name (using last occurrence)"
+    }
+    $nameDict2[$name] = [PSCustomObject]@{
+        Hash = $hash
+        Path = $_.FullName
+    }
+}
+
+# Type 1: Find missing files by hash (regardless of name)
+$missingInFolder2 = $hashDict1.Keys | Where-Object { -not $hashDict2.ContainsKey($_) }
+$missingInFolder1 = $hashDict2.Keys | Where-Object { -not $hashDict1.ContainsKey($_) }
+
+# Report missing files
+if ($missingInFolder2) {
+    Write-Host "`nMISSING FILES IN FOLDER2 (by content):" -ForegroundColor Cyan
+    $missingInFolder2 | ForEach-Object {
+        $file = $hashDict1[$_]
+        Write-Host "  File: $($file.Name)"
+        Write-Host "  Location: Folder1 ($($file.Path))"
+        Write-Host "  Hash: $_`n"
+    }
+}
+
+if ($missingInFolder1) {
+    Write-Host "`nMISSING FILES IN FOLDER1 (by content):" -ForegroundColor Cyan
+    $missingInFolder1 | ForEach-Object {
+        $file = $hashDict2[$_]
+        Write-Host "  File: $($file.Name)"
+        Write-Host "  Location: Folder2 ($($file.Path))"
+        Write-Host "  Hash: $_`n"
+    }
+}
+
+# Type 2: Find corrupted files (same name, different hash)
+$corruptedFiles = $nameDict1.Keys | 
+    Where-Object { $nameDict2.ContainsKey($_) } |
+    Where-Object { $nameDict1[$_].Hash -ne $nameDict2[$_].Hash }
+
+# Report corrupted files
+if ($corruptedFiles) {
+    Write-Host "`nCORRUPTED FILES (same name, different content):" -ForegroundColor Cyan
+    $corruptedFiles | ForEach-Object {
+        $file1 = $nameDict1[$_]
+        $file2 = $nameDict2[$_]
+        Write-Host "  File: $_"
+        Write-Host "  Folder1: $($file1.Path) (Hash: $($file1.Hash))"
+        Write-Host "  Folder2: $($file2.Path) (Hash: $($file2.Hash))`n"
+    }
+}
+
+# Final status
+if (-not ($missingInFolder1 -or $missingInFolder2 -or $corruptedFiles)) {
+    Write-Host "`nNo missing or corrupted files found. All content matches." -ForegroundColor Green
+}
+
+################################################################################################
+
+# Initialize folder path variables
+$Folder1 = 'C:\Users\Yousif\Downloads\android bin\compress\v5'
+$Folder2 = 'C:\Users\Yousif\Downloads\android bin\compress\v5 diff'
+
+# Function to get all files with their hashes
+function Get-FileHashList {
+    param(
+        [Parameter(Mandatory)]
+        [string]$FolderPath
+    )
+
+    Get-ChildItem -LiteralPath $FolderPath -Recurse -File | ForEach-Object {
+        $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+        [PSCustomObject]@{
+            Name     = $_.Name
+            FullPath = $_.FullName
+            Hash     = $hash
+        }
+    }
+}
+
+# Get file lists from both folders
+Write-Host "Indexing $Folder1..." -ForegroundColor Cyan
+$files1 = Get-FileHashList -FolderPath $Folder1
+
+Write-Host "Indexing $Folder2..." -ForegroundColor Cyan
+$files2 = Get-FileHashList -FolderPath $Folder2
+
+# Find missing files by hash comparison
+$hashes1   = $files1.Hash | Sort-Object -Unique
+$hashes2   = $files2.Hash | Sort-Object -Unique
+$missingIn2 = $files1 | Where-Object { $_.Hash -notin $hashes2 }
+$missingIn1 = $files2 | Where-Object { $_.Hash -notin $hashes1 }
+
+# Find corrupted files (same filename, different hash)
+$commonNames = ($files1.Name | Sort-Object -Unique) |
+               Where-Object { $_ -in ($files2.Name | Sort-Object -Unique) }
+
+$corruptedFiles = foreach ($name in $commonNames) {
+    $hash1 = ($files1 | Where-Object Name -EQ $name).Hash | Sort-Object -Unique
+    $hash2 = ($files2 | Where-Object Name -EQ $name).Hash | Sort-Object -Unique
+
+    if (Compare-Object $hash1 $hash2) {
+        [PSCustomObject]@{
+            FileName       = $name
+            Folder1_Hashes = $hash1 -join ', '
+            Folder2_Hashes = $hash2 -join ', '
+        }
+    }
+}
+
+# Display results
+if ($missingIn2 -or $missingIn1) {
+    Write-Host "`n====== MISSING FILES REPORT ======" -ForegroundColor Red
+
+    if ($missingIn2) {
+        Write-Host "`nFiles MISSING in Folder2 (by content):" -ForegroundColor Yellow
+        $missingIn2 | Format-Table Name, FullPath, Hash -AutoSize
+    }
+
+    if ($missingIn1) {
+        Write-Host "`nFiles MISSING in Folder1 (by content):" -ForegroundColor Yellow
+        $missingIn1 | Format-Table Name, FullPath, Hash -AutoSize
+    }
+} else {
+    Write-Host "`nNo missing files found" -ForegroundColor Green
+}
+
+if ($corruptedFiles) {
+    Write-Host "`n====== CORRUPTED FILES REPORT ======" -ForegroundColor Red
+    Write-Host "Files with same name but different hashes:" -ForegroundColor Yellow
+    $corruptedFiles | Format-Table FileName, Folder1_Hashes, Folder2_Hashes -AutoSize
+} else {
+    Write-Host "`nNo corrupted files found" -ForegroundColor Green
+}
+
+Write-Host "`nComparison complete" -ForegroundColor Cyan
+
