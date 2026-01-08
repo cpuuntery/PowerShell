@@ -1,0 +1,8 @@
+$driverPath = "C:\Windows\System32\drivers\WdFilter.sys"
+$users = @("TrustedInstaller", "ALL APPLICATION PACKAGES", "CREATOR OWNER", "SYSTEM", "Administrators", "Users", "ALL RESTRICTED APPLICATION PACKAGES")
+foreach ($user in $users) {
+    $acl = Get-Acl $driverPath
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($user, "FullControl", "Deny")
+    $acl.AddAccessRule($rule)
+    Set-Acl $driverPath $acl
+}
